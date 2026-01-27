@@ -2,6 +2,9 @@
   "actorSpecification": 1,
   "name": "xbox-reviews-scraper",
   "version": "1.0.0",
+  "meta": {
+    "generatedBy": "GPT-5 Codex"
+  },
   "buildTag": "latest",
   "dockerfile": "../Dockerfile",
   "readme": "../README.md",

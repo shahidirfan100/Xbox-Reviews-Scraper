@@ -14,6 +14,50 @@ async function main() {
         } = input;
 
         const MAX_REVIEWS = Number.isFinite(+MAX_REVIEWS_RAW) ? Math.max(1, +MAX_REVIEWS_RAW) : 20;
+        const SELECTORS = {
+            reviewCard: 'div[class*="ReviewCards-module__reviewCardContainer"]',
+            loadMoreButton: 'button[class*="ReviewCards-module__loadMoreButton"]',
+            userName: 'div[class*="ReviewCards-module__reviewUserName"]',
+            rating: 'div[class*="ReviewCards-module__ratings"]',
+            reviewTitle: 'p[class*="ReviewCards-module__reviewTitle"], div[class*="ReviewCards-module__reviewTitle"]',
+            reviewText: 'p[class*="ReviewCards-module__reviewText"], div[class*="ReviewCards-module__reviewText"]',
+            reviewDate: 'p[class*="ReviewCards-module__reviewDate"], div[class*="ReviewCards-module__reviewDate"]',
+            showMoreButton: 'button[class*="ReviewCards-module__showMoreButton"]',
+            noReviewsTitle: 'div[class*="ReviewCards-module__noReviewsTitle"]',
+        };
+
+        const extractProductId = (url) => {
+            const match = url.match(/\/([A-Z0-9]{12})(?:\/|\?|$)/i);
+            return match ? match[1].toUpperCase() : null;
+        };
+
+        const scrollToReviews = async (page) => {
+            const headingCandidates = [
+                'h2:has-text("Reviews")',
+                'h2:has-text("REVIEWS")',
+                'h2:has-text("Ratings and reviews")',
+                '[class*="RatingsAndReviews-module__"]',
+            ];
+
+            for (const selector of headingCandidates) {
+                const locator = page.locator(selector).first();
+                if (await locator.count()) {
+                    await locator.scrollIntoViewIfNeeded();
+                    await page.waitForTimeout(800);
+                    return;
+                }
+            }
+
+            // Fallback: gradual scroll to trigger lazy-loaded sections
+            await page.evaluate(async () => {
+                const distance = 800;
+                const delay = 250;
+                for (let i = 0; i < 10; i++) {
+                    window.scrollBy(0, distance);
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                }
+            });
+        };
 
         // Create proxy configuration (residential recommended for Xbox.com)
         const proxyConfiguration = await Actor.createProxyConfiguration(proxyConfig || {
@@ -75,6 +119,7 @@ async function main() {
             async requestHandler({ page, request }) {
                 const gameUrl = request.url;
                 log.info(`Processing reviews for: ${gameUrl}`);
+                const productId = extractProductId(gameUrl);
 
                 // Wait for page to load and stabilize
                 await page.waitForLoadState('domcontentloaded');
@@ -84,6 +129,18 @@ async function main() {
                 const gameTitle = await page.locator('h1').first().textContent().catch(() => 'Unknown Game') || 'Unknown Game';
                 log.info(`Game title: ${gameTitle}`);
 
+                // Fetch rating summary (helps debug when reviews fail to load)
+                if (productId) {
+                    const ratingSummary = await page.evaluate((pid) => {
+                        const summary = window.__PRELOADED_STATE__?.core2?.products?.productSummaries?.[pid];
+                        if (!summary) return null;
+                        return { averageRating: summary.averageRating, ratingCount: summary.ratingCount };
+                    }, productId);
+                    if (ratingSummary) {
+                        log.info(`Rating summary: ${ratingSummary.averageRating} (${ratingSummary.ratingCount} ratings)`);
+                    }
+                }
+
                 // Navigate to Reviews section if needed (sometimes it's a tab or scroll)
                 // For direct store pages, reviews are usually further down.
                 // We'll rely on selectors finding them.
@@ -92,8 +149,22 @@ async function main() {
                 log.info('Starting to load reviews...');
 
                 // Selectors identified via inspection
-                const LOAD_MORE_SELECTOR = 'button[class*="ReviewCards-module__loadMoreButton"]';
-                const REVIEW_CONTAINER_SELECTOR = 'div[class*="ReviewCards-module__reviewCardContainer"]';
+                const LOAD_MORE_SELECTOR = SELECTORS.loadMoreButton;
+                const REVIEW_CONTAINER_SELECTOR = SELECTORS.reviewCard;
+                const NO_REVIEWS_SELECTOR = SELECTORS.noReviewsTitle;
+
+                // Ensure the reviews section is in view (lazy-loaded on scroll)
+                await scrollToReviews(page);
+
+                // Wait until reviews load or no-reviews state is visible
+                const reviewsLoaded = await Promise.race([
+                    page.waitForSelector(REVIEW_CONTAINER_SELECTOR, { timeout: 15000 }).then(() => true).catch(() => false),
+                    page.waitForSelector(NO_REVIEWS_SELECTOR, { timeout: 15000 }).then(() => false).catch(() => false),
+                ]);
+
+                if (!reviewsLoaded) {
+                    log.warning('Reviews section did not load within timeout. Continuing with extraction anyway.');
+                }
 
                 let loadMoreAttempts = 0;
                 let consecutiveErrors = 0;
@@ -111,7 +182,11 @@ async function main() {
 
                         const loadMoreBtn = page.locator(LOAD_MORE_SELECTOR).first();
 
-                        if (await loadMoreBtn.isVisible()) {
+                        if (!(await loadMoreBtn.isVisible().catch(() => false))) {
+                            await loadMoreBtn.scrollIntoViewIfNeeded().catch(() => {});
+                        }
+
+                        if (await loadMoreBtn.isVisible().catch(() => false)) {
                             // Add random delay before click slightly to mimic human
                             await page.waitForTimeout(Math.floor(Math.random() * 1000) + 500);
 
@@ -140,21 +215,33 @@ async function main() {
                 // --- EXTRACT REVIEWS ---
                 log.info('Extracting review data...');
 
-                const reviews = await page.evaluate((maxReviews) => {
-                    const reviewElements = Array.from(document.querySelectorAll('div[class*="ReviewCards-module__reviewCardContainer"]'));
+                // Expand "show more" to capture full text where available
+                await page.evaluate((selector) => {
+                    document.querySelectorAll(selector).forEach((btn) => {
+                        try {
+                            btn.click();
+                        } catch {
+                            // Ignore failures for hidden/disabled buttons
+                        }
+                    });
+                }, SELECTORS.showMoreButton);
+                await page.waitForTimeout(500);
+
+                const reviews = await page.evaluate(({ maxReviews, selectors }) => {
+                    const reviewElements = Array.from(document.querySelectorAll(selectors.reviewCard));
 
                     return reviewElements.slice(0, maxReviews).map(el => {
-                        const userNameEl = el.querySelector('div[class*="ReviewCards-module__reviewUserName"]');
-                        // Rating is hidden in aria-label sometimes
-                        const ratingEl = el.querySelector('div[aria-label^="Rated"], div[aria-label^="Rating of"]');
-                        const textEl = el.querySelector('p[class*="ReviewCards-module__reviewText"]');
-                        const dateEl = el.querySelector('p[class*="ReviewCards-module__reviewDate"]');
+                        const userNameEl = el.querySelector(selectors.userName);
+                        const titleEl = el.querySelector(selectors.reviewTitle);
+                        const ratingEl = el.querySelector(selectors.rating) || el.querySelector('[aria-label*="star" i], [aria-label*="rating" i]');
+                        const textEl = el.querySelector(selectors.reviewText);
+                        const dateEl = el.querySelector(selectors.reviewDate);
 
                         // Extract numeric rating from "Rating of 5 stars" or "Rated 4 out of 5"
                         let rating = null;
                         if (ratingEl) {
-                            const ariaLabel = ratingEl.getAttribute('aria-label') || '';
-                            const match = ariaLabel.match(/(\d)(\.\d)?/);
+                            const ariaLabel = ratingEl.getAttribute('aria-label') || ratingEl.textContent || '';
+                            const match = ariaLabel.match(/([0-5](?:\\.\\d)?)/);
                             if (match) {
                                 rating = parseFloat(match[0]);
                             }
@@ -164,17 +251,19 @@ async function main() {
                         return {
                             reviewerName: userNameEl ? userNameEl.textContent.trim() : null,
                             rating: rating,
+                            reviewTitle: titleEl ? titleEl.textContent.trim() : null,
                             reviewText: textEl ? textEl.textContent.trim() : null,
                             reviewDate: dateEl ? dateEl.textContent.trim() : null,
                             scrapedAt: new Date().toISOString()
                         };
                     });
-                }, MAX_REVIEWS);
+                }, { maxReviews: MAX_REVIEWS, selectors: SELECTORS });
 
                 // Add game metadata to each review
                 const enrichedReviews = reviews.map(r => ({
                     gameTitle,
                     url: gameUrl,
+                    productId,
                     ...r
                 })).filter(r => r.reviewerName || r.reviewText); // Filter empty junk
 
@@ -197,6 +286,6 @@ async function main() {
 }
 
 main().catch(err => {
-    console.error(err);
+    log.exception(err, 'Actor failed');
     process.exit(1);
 });

@@ -9,9 +9,11 @@
           "gameTitle",
           "reviewerName",
           "rating",
+          "reviewTitle",
           "reviewText",
           "reviewDate",
           "url",
+          "productId",
           "scrapedAt"
         ]
       },
@@ -30,6 +32,10 @@
             "label": "Rating",
             "format": "number"
           },
+          "reviewTitle": {
+            "label": "Review Title",
+            "format": "text"
+          },
           "reviewText": {
             "label": "Review Text",
             "format": "text"
@@ -41,6 +47,10 @@
           "url": {
             "label": "Game URL",
             "format": "link"
+          },
+          "productId": {
+            "label": "Product ID",
+            "format": "text"
           },
           "scrapedAt": {
             "label": "Scraped At",
