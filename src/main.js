@@ -58,6 +58,36 @@ async function main() {
                 }
             });
         };
+        const openReviewsTab = async (page) => {
+            const tabSelectors = [
+                { role: 'tab', name: /reviews/i },
+                { role: 'tab', name: /ratings and reviews/i },
+            ];
+            for (const tab of tabSelectors) {
+                const locator = page.getByRole(tab.role, { name: tab.name }).first();
+                if (await locator.count()) {
+                    await locator.click().catch(() => {});
+                    await page.waitForTimeout(800);
+                    return true;
+                }
+            }
+
+            const buttonSelectors = [
+                'button:has-text("Reviews")',
+                'button:has-text("Ratings and reviews")',
+                'a:has-text("Reviews")',
+                'a:has-text("Ratings and reviews")',
+            ];
+            for (const selector of buttonSelectors) {
+                const locator = page.locator(selector).first();
+                if (await locator.count()) {
+                    await locator.click().catch(() => {});
+                    await page.waitForTimeout(800);
+                    return true;
+                }
+            }
+            return false;
+        };
 
         // Create proxy configuration (residential recommended for Xbox.com)
         const proxyConfiguration = await Actor.createProxyConfiguration(proxyConfig || {
@@ -88,6 +118,34 @@ async function main() {
             // Pre-navigation hooks for stealth and resource blocking
             preNavigationHooks: [
                 async ({ page }) => {
+                    page.__reviewResponses = [];
+                    page.__reviewResponseUrls = new Set();
+
+                    page.on('response', async (response) => {
+                        try {
+                            const url = response.url();
+                            if (!/review|rating|rnr|ratingsedge/i.test(url)) return;
+                            const contentType = response.headers()['content-type'] || '';
+                            if (!contentType.includes('application/json')) return;
+                            if (page.__reviewResponseUrls.has(url)) return;
+                            page.__reviewResponseUrls.add(url);
+
+                            const bodyText = await response.text();
+                            if (!bodyText || bodyText.length > 2_000_000) return;
+                            const json = JSON.parse(bodyText);
+                            page.__reviewResponses.push({ url, json });
+                        } catch {
+                            // Ignore parsing and network errors
+                        }
+                    });
+
+                    page.on('requestfailed', (request) => {
+                        const url = request.url();
+                        if (/review|rating|rnr|ratingsedge/i.test(url)) {
+                            log.warning(`Review API request failed: ${url}`);
+                        }
+                    });
+
                     // Block heavy resources for better performance
                     await page.route('**/*', (route) => {
                         const type = route.request().resourceType();
@@ -153,13 +211,16 @@ async function main() {
                 const REVIEW_CONTAINER_SELECTOR = SELECTORS.reviewCard;
                 const NO_REVIEWS_SELECTOR = SELECTORS.noReviewsTitle;
 
+                // Attempt to open reviews tab if present
+                await openReviewsTab(page);
+
                 // Ensure the reviews section is in view (lazy-loaded on scroll)
                 await scrollToReviews(page);
 
                 // Wait until reviews load or no-reviews state is visible
                 const reviewsLoaded = await Promise.race([
-                    page.waitForSelector(REVIEW_CONTAINER_SELECTOR, { timeout: 15000 }).then(() => true).catch(() => false),
-                    page.waitForSelector(NO_REVIEWS_SELECTOR, { timeout: 15000 }).then(() => false).catch(() => false),
+                    page.waitForSelector(REVIEW_CONTAINER_SELECTOR, { timeout: 25000 }).then(() => true).catch(() => false),
+                    page.waitForSelector(NO_REVIEWS_SELECTOR, { timeout: 25000 }).then(() => false).catch(() => false),
                 ]);
 
                 if (!reviewsLoaded) {
@@ -267,10 +328,65 @@ async function main() {
                     ...r
                 })).filter(r => r.reviewerName || r.reviewText); // Filter empty junk
 
-                log.info(`Extracted ${enrichedReviews.length} reviews.`);
+                const extractFromJson = (payload) => {
+                    const results = [];
+                    const stack = [payload];
+                    while (stack.length) {
+                        const current = stack.pop();
+                        if (!current) continue;
+                        if (Array.isArray(current)) {
+                            for (const item of current) stack.push(item);
+                            continue;
+                        }
+                        if (typeof current === 'object') {
+                            const keys = Object.keys(current);
+                            const hasRating = keys.some((k) => /rating|star|score/i.test(k));
+                            const hasText = keys.some((k) => /review|comment|text|body/i.test(k));
+                            if (hasRating && hasText) {
+                                results.push(current);
+                            }
+                            for (const value of Object.values(current)) stack.push(value);
+                        }
+                    }
+                    return results;
+                };
+
+                const normalizeReview = (raw) => {
+                    const ratingValue = raw.rating ?? raw.starRating ?? raw.ratingValue ?? raw.score ?? null;
+                    const maybeDate = raw.reviewDate ?? raw.submittedDateTime ?? raw.createdAt ?? raw.date ?? null;
+                    const reviewDate = typeof maybeDate === 'number'
+                        ? new Date(maybeDate).toISOString()
+                        : (maybeDate ? String(maybeDate) : null);
+                    return {
+                        reviewerName: raw.reviewerName ?? raw.userName ?? raw.gamertag ?? raw.author ?? raw.user?.name ?? null,
+                        rating: Number.isFinite(+ratingValue) ? +ratingValue : null,
+                        reviewTitle: raw.reviewTitle ?? raw.title ?? raw.headline ?? null,
+                        reviewText: raw.reviewText ?? raw.text ?? raw.comment ?? raw.body ?? null,
+                        reviewDate,
+                        scrapedAt: new Date().toISOString(),
+                    };
+                };
+
+                let finalReviews = enrichedReviews;
+                if (finalReviews.length === 0 && page.__reviewResponses?.length) {
+                    const apiReviews = [];
+                    for (const entry of page.__reviewResponses) {
+                        const found = extractFromJson(entry.json);
+                        apiReviews.push(...found);
+                    }
+                    const mapped = apiReviews.map(normalizeReview);
+                    finalReviews = mapped
+                        .map(r => ({ gameTitle, url: gameUrl, productId, ...r }))
+                        .filter(r => r.reviewerName || r.reviewText);
+                    if (finalReviews.length) {
+                        log.info(`Extracted ${finalReviews.length} reviews from API responses.`);
+                    }
+                }
+
+                log.info(`Extracted ${finalReviews.length} reviews.`);
 
                 // Save to dataset
-                await Dataset.pushData(enrichedReviews);
+                await Dataset.pushData(finalReviews);
             },
         });
 
