@@ -6,23 +6,23 @@
       "title": "Overview",
       "transformation": {
         "fields": [
-          "game_title",
-          "reviewer_name",
+          "gameTitle",
+          "reviewerName",
           "rating",
-          "review_text",
-          "review_date",
-          "helpful_votes",
-          "url"
+          "reviewText",
+          "reviewDate",
+          "url",
+          "scrapedAt"
         ]
       },
       "display": {
         "component": "table",
         "properties": {
-          "game_title": {
+          "gameTitle": {
             "label": "Game Title",
             "format": "text"
           },
-          "reviewer_name": {
+          "reviewerName": {
             "label": "Reviewer Name",
             "format": "text"
           },
@@ -30,21 +30,21 @@
             "label": "Rating",
             "format": "number"
           },
-          "review_text": {
+          "reviewText": {
             "label": "Review Text",
             "format": "text"
           },
-          "review_date": {
+          "reviewDate": {
             "label": "Review Date",
             "format": "date"
-          },
-          "helpful_votes": {
-            "label": "Helpful Votes",
-            "format": "number"
           },
           "url": {
             "label": "Game URL",
             "format": "link"
+          },
+          "scrapedAt": {
+            "label": "Scraped At",
+            "format": "date"
           }
         }
       }
