@@ -1,0 +1,47 @@
+{
+  "title": "Xbox Reviews Scraper",
+  "description": "Scrape user reviews from Xbox game store pages. Provide game URLs to extract reviews including ratings, text, dates, and reviewer information.",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "startUrls": {
+      "title": "Start URLs",
+      "type": "array",
+      "description": "URLs to Xbox game store pages to scrape reviews from. Example: https://www.xbox.com/en-US/games/store/arc-raiders/9NDF1F263RZ4/0010",
+      "editor": "requestListSources",
+      "default": [
+        {
+          "url": "https://www.xbox.com/en-US/games/store/arc-raiders/9NDF1F263RZ4/0010"
+        }
+      ],
+      "prefill": [
+        {
+          "url": "https://www.xbox.com/en-US/games/store/arc-raiders/9NDF1F263RZ4/0010"
+        }
+      ]
+    },
+    "maxReviewsPerUrl": {
+      "title": "Maximum reviews per URL",
+      "type": "integer",
+      "description": "Maximum number of reviews to collect per game URL. Leave empty to collect all available reviews.",
+      "minimum": 1,
+      "default": 20,
+      "prefill": 20,
+      "editor": "number"
+    },
+    "proxyConfiguration": {
+      "title": "Proxy configuration",
+      "type": "object",
+      "description": "Use Apify Proxy for reliable scraping (Residential recommended for Xbox).",
+      "editor": "proxy",
+      "default": {
+        "useApifyProxy": true,
+        "apifyProxyGroups": [
+          "RESIDENTIAL"
+        ]
+      }
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

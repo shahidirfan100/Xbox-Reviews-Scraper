@@ -1,0 +1,53 @@
+{
+  "actorSpecification": 1,
+  "fields": {},
+  "views": {
+    "overview": {
+      "title": "Overview",
+      "transformation": {
+        "fields": [
+          "game_title",
+          "reviewer_name",
+          "rating",
+          "review_text",
+          "review_date",
+          "helpful_votes",
+          "url"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "game_title": {
+            "label": "Game Title",
+            "format": "text"
+          },
+          "reviewer_name": {
+            "label": "Reviewer Name",
+            "format": "text"
+          },
+          "rating": {
+            "label": "Rating",
+            "format": "number"
+          },
+          "review_text": {
+            "label": "Review Text",
+            "format": "text"
+          },
+          "review_date": {
+            "label": "Review Date",
+            "format": "date"
+          },
+          "helpful_votes": {
+            "label": "Helpful Votes",
+            "format": "number"
+          },
+          "url": {
+            "label": "Game URL",
+            "format": "link"
+          }
+        }
+      }
+    }
+  }
+}
