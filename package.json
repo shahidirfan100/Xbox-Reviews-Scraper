@@ -1,14 +1,13 @@
 {
   "name": "xbox-reviews-scraper",
-  "version": "1.0.0",
+  "version": "1.0",
   "description": "Xbox Reviews Scraper - Extract user reviews, ratings, and feedback from Xbox game store pages",
   "type": "module",
   "dependencies": {
-    "apify": "^3.5.2",
-    "crawlee": "^3.15.3",
-    "playwright": "1.56.1",
-    "got-scraping": "^4.1.2",
-    "cheerio": "^1.0.0-rc.12"
+    "apify": "^3.6.0",
+    "cheerio": "^1.2.0",
+    "crawlee": "^3.16.0",
+    "got-scraping": "^4.2.1"
   },
   "scripts": {
     "start": "node src/main.js",

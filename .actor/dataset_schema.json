@@ -7,55 +7,64 @@
       "transformation": {
         "fields": [
           "gameTitle",
+          "url",
+          "productId",
+          "locale",
+          "orderBy",
+          "totalReviews",
+          "averageRating",
+          "totalRatingsCount",
+          "star1Count",
+          "star2Count",
+          "star3Count",
+          "star4Count",
+          "star5Count",
+          "reviewId",
           "reviewerName",
           "rating",
           "reviewTitle",
           "reviewText",
           "reviewDate",
-          "url",
-          "productId",
+          "helpfulnessVotes",
+          "helpfulPositive",
+          "helpfulNegative",
+          "deviceFamily",
+          "developerName",
+          "publisherName",
+          "shortDescription",
           "scrapedAt"
         ]
       },
       "display": {
         "component": "table",
         "properties": {
-          "gameTitle": {
-            "label": "Game Title",
-            "format": "text"
-          },
-          "reviewerName": {
-            "label": "Reviewer Name",
-            "format": "text"
-          },
-          "rating": {
-            "label": "Rating",
-            "format": "number"
-          },
-          "reviewTitle": {
-            "label": "Review Title",
-            "format": "text"
-          },
-          "reviewText": {
-            "label": "Review Text",
-            "format": "text"
-          },
-          "reviewDate": {
-            "label": "Review Date",
-            "format": "date"
-          },
-          "url": {
-            "label": "Game URL",
-            "format": "link"
-          },
-          "productId": {
-            "label": "Product ID",
-            "format": "text"
-          },
-          "scrapedAt": {
-            "label": "Scraped At",
-            "format": "date"
-          }
+          "gameTitle": { "label": "Game Title", "format": "text" },
+          "url": { "label": "Game URL", "format": "link" },
+          "productId": { "label": "Product ID", "format": "text" },
+          "locale": { "label": "Locale", "format": "text" },
+          "orderBy": { "label": "Sort", "format": "text" },
+          "totalReviews": { "label": "Total Reviews", "format": "number" },
+          "averageRating": { "label": "Average Rating", "format": "number" },
+          "totalRatingsCount": { "label": "Total Ratings", "format": "number" },
+          "star1Count": { "label": "1 Star", "format": "number" },
+          "star2Count": { "label": "2 Star", "format": "number" },
+          "star3Count": { "label": "3 Star", "format": "number" },
+          "star4Count": { "label": "4 Star", "format": "number" },
+          "star5Count": { "label": "5 Star", "format": "number" },
+          "reviewId": { "label": "Review ID", "format": "text" },
+          "reviewerName": { "label": "Reviewer Name", "format": "text" },
+          "rating": { "label": "Rating", "format": "number" },
+          "reviewTitle": { "label": "Review Title", "format": "text" },
+          "reviewText": { "label": "Review Text", "format": "text" },
+          "reviewDate": { "label": "Review Date", "format": "date" },
+          "helpfulnessVotes": { "label": "Helpfulness Score", "format": "number" },
+          "helpfulPositive": { "label": "Helpful Positive", "format": "number" },
+          "helpfulNegative": { "label": "Helpful Negative", "format": "number" },
+          "deviceFamily": { "label": "Device Family", "format": "text" },
+          "developerName": { "label": "Developer", "format": "text" },
+          "publisherName": { "label": "Publisher", "format": "text" },
+          "shortDescription": { "label": "Description", "format": "text" },
+          "scrapedAt": { "label": "Scraped At", "format": "date" }
         }
       }
     }

@@ -1,6 +1,6 @@
-# Specify the base Docker image with Playwright + Chrome
-# Check available versions: https://hub.docker.com/r/apify/actor-node-playwright-chrome
-FROM apify/actor-node-playwright-chrome:22-1.56.1
+# Specify a lightweight Node.js base image (Playwright not required)
+# Check available versions: https://hub.docker.com/r/apify/actor-node
+FROM apify/actor-node:22
 
 # Copy just package.json and package-lock.json first for caching
 COPY --chown=myuser:myuser package*.json ./

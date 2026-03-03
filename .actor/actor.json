@@ -1,7 +1,7 @@
 {
   "actorSpecification": 1,
   "name": "xbox-reviews-scraper",
-  "version": "1.0.0",
+  "version": "1.0",
   "meta": {
     "generatedBy": "GPT-5 Codex"
   },

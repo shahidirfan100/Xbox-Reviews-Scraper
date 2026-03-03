@@ -1,6 +1,6 @@
 {
   "title": "Xbox Reviews Scraper",
-  "description": "Scrape user reviews from Xbox game store pages. Provide game URLs to extract reviews including ratings, text, dates, and reviewer information.",
+  "description": "Collect Xbox game ratings and reviews from API-backed sources using game store URLs.",
   "type": "object",
   "schemaVersion": 1,
   "properties": {
@@ -23,7 +23,7 @@
     "maxReviewsPerUrl": {
       "title": "Maximum reviews per URL",
       "type": "integer",
-      "description": "Maximum number of reviews to collect per game URL. Leave empty to collect all available reviews.",
+      "description": "Maximum number of reviews to collect per game URL.",
       "minimum": 1,
       "default": 20,
       "prefill": 20,
@@ -32,16 +32,15 @@
     "proxyConfiguration": {
       "title": "Proxy configuration",
       "type": "object",
-      "description": "Use Apify Proxy for reliable scraping (Residential recommended for Xbox).",
+      "description": "Optional. Enable Apify Proxy only if you need it.",
       "editor": "proxy",
       "default": {
-        "useApifyProxy": true,
-        "apifyProxyGroups": [
-          "RESIDENTIAL"
-        ]
+        "useApifyProxy": false
       }
     }
   },
-  "required": [],
+  "required": [
+    "startUrls"
+  ],
   "additionalProperties": false
 }
